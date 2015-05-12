@@ -1,5 +1,10 @@
 language: android
-install: gradle build connectedCheck
+before_install:
+  - wget https://services.gradle.org/distributions/gradle-2.4-bin.zip
+  - unzip gradle-2.4-bin.zip
+  - export GRADLE_HOME=$PWD/gradle-2.4
+  - export PATH=$GRADLE_HOME/bin:$PATH
+
 android:
   components:
     - build-tools-22.0.1
