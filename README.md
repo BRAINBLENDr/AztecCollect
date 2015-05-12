@@ -1,4 +1,4 @@
-# Aztec Collect
+# Aztec Collect [![Build Status](https://travis-ci.org/BRAINBLENDr/AztecCollect.svg?branch=master)](https://travis-ci.org/BRAINBLENDr/AztecCollect)
 
 **Aztec** Barcode **Collect**or for PoC Data Analysis
 
