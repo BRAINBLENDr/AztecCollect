@@ -1,13 +1,26 @@
 language: android
+jdk: oraclejdk7
+env:
+  matrix:
+    - ANDROID_TARGET=android-22
+
 before_install:
   - wget https://services.gradle.org/distributions/gradle-2.4-bin.zip
   - unzip gradle-2.4-bin.zip
   - export GRADLE_HOME=$PWD/gradle-2.4
   - export PATH=$GRADLE_HOME/bin:$PATH
+
 branches:
   only:
     - build
+
 android:
   components:
     - build-tools-22.0.1
     - android-22
+    - platform-tools
+    - extra-android-support
+    - extra-android-m2repository
+
+script:
+  - ./gradlew connectedAndroidTest
