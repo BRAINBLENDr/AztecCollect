@@ -9,6 +9,7 @@ before_install:
   - unzip gradle-2.4-bin.zip
   - export GRADLE_HOME=$PWD/gradle-2.4
   - export PATH=$GRADLE_HOME/bin:$PATH
+  - echo yes | android update sdk --filter sysimg-22 --no-ui --force > /dev/null
 
 branches:
   only:
@@ -21,6 +22,7 @@ android:
     - platform-tools
     - extra-android-support
     - extra-android-m2repository
+    - 
 
 before_script:
   # Create and start emulator
