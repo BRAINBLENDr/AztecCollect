@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 String fName = result.getFormatName();
                 String output;
+                Log.d("AZTEC-COLLECT", result.toString());
                 if (fName.equals("AZTEC")) {
                     if (result.getRawBytes() != null) {
                         output = bytesToHex(result.getRawBytes());
