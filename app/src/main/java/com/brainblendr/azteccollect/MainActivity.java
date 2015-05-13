@@ -47,12 +47,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // TODO: add getRawBytes() functionality (https://github.com/zxing/zxing/blob/master/core/src/main/java/com/google/zxing/aztec/decoder/Decoder.java#L79 needs to be fixed)
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
         if(result != null) {
             try {
                 String fName = result.getFormatName();
                 String output;
-                Log.d("AZTEC-COLLECT", result.toString());
                 if (fName.equals("AZTEC")) {
                     if (result.getRawBytes() != null) {
                         output = bytesToHex(result.getRawBytes());
