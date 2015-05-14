@@ -74,8 +74,8 @@ public final class Decoder {
         ddata = detectorResult;
         BitMatrix matrix = detectorResult.getBits();
         boolean[] rawbits = extractBits(matrix);
-        byte[] rawBytes = convertBoolArrayToByteArray(rawbits);
         boolean[] correctedBits = correctBits(rawbits);
+        byte[] rawBytes = convertBoolArrayToByteArray(correctedBits);
         String result = getEncodedData(correctedBits);
         return new DecoderResult(rawBytes, result, null, null);
     }

@@ -32,7 +32,4 @@ dependencies {
     compile 'com.android.support:appcompat-v7:22.1.1'
 
     compile 'com.android.support:support-v4:22.1.1'
-
-    // Supports Android 4.0.3 and later (API level 15)
-    compile 'com.journeyapps:zxing-android-embedded:2.3.0@aar'
 }
