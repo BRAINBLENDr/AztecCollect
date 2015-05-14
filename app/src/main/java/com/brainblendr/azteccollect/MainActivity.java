@@ -3,12 +3,14 @@ package com.brainblendr.azteccollect;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -77,7 +79,7 @@ public class MainActivity extends AppCompatActivity {
         pdt.execute(result);
     }
 
-    public String performPostCall(String requestURL,
+    public void performPostCall(String requestURL,
                                   HashMap<String, String> postDataParams) {
 
         URL url;
@@ -122,11 +124,35 @@ public class MainActivity extends AppCompatActivity {
                     response += line;
                 }
             }
+
+            JSONObject json = new JSONObject(response);
+            JSONObject error = new JSONObject(json.getString("error"));
+            if (json.getBoolean("success")) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setMessage("Code submitted!")
+                        .setCancelable(false)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                //do things
+                            }
+                        });
+                AlertDialog alert = builder.create();
+                alert.show();
+            } else {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setMessage(error.getString("message"))
+                        .setCancelable(false)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                //do things
+                            }
+                        });
+                AlertDialog alert = builder.create();
+                alert.show();
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        return response;
     }
 
     private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
@@ -146,12 +172,26 @@ public class MainActivity extends AppCompatActivity {
         return result.toString();
     }
 
-
+    private void noNetworkDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("No Network Connection!")
+                .setCancelable(false)
+                .setPositiveButton("Close App", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        MainActivity.this.finish();
+                        System.exit(0);
+                    }
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
     private class postDataTask extends AsyncTask<IntentResult, Void, Void> {
         private Activity activity;
+        private Activity context;
 
         public postDataTask(Activity activity) {
             this.activity = activity;
+            this.context = context;
         }
 
         @Override
@@ -169,23 +209,9 @@ public class MainActivity extends AppCompatActivity {
                             if (networkInfo != null && networkInfo.isConnected()) {
                                 HashMap<String, String> hm = new HashMap<String, String>();
                                 hm.put("data", output);
-                                String result_s = performPostCall("https://api1.nl/aztec/code/store.json", hm);
-                                if (result_s != null) {
-                                    JSONObject json = new JSONObject(result_s);
-                                    JSONObject error = new JSONObject(json.getString("error"));
-                                    if (json.getBoolean("success")) {
-                                        Log.i("AZTEC-RESP", "Success");
-                                    } else {
-                                        Log.e("AZTEC-RESP", error.getString("message"));
-                                    }
-                                } else {
-                                    Log.e("AZTEC-RESP", "Error!");
-                                }
+                                performPostCall("https://api1.nl/aztec/code/store.json", hm);
                             } else {
-                                // No Network
-                                //Toast.makeText(this.activity, "No Network, Exiting...", Toast.LENGTH_LONG).show();
-                                MainActivity.this.finish();
-                                System.exit(0);
+                                noNetworkDialog();
                             }
                         }
                     } else {
