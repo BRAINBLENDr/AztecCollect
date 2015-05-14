@@ -1,6 +1,7 @@
 package com.brainblendr.azteccollect;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -10,7 +11,6 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -23,6 +23,7 @@ import org.apache.http.HttpException;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
@@ -117,38 +118,23 @@ public class MainActivity extends AppCompatActivity {
                 while ((line = br.readLine()) != null) {
                     response += line;
                 }
-            } else if (responseCode == HttpsURLConnection.HTTP_OK) {
+            } else if (responseCode == HttpsURLConnection.HTTP_CREATED) {
                 String line;
                 BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 while ((line = br.readLine()) != null) {
                     response += line;
                 }
             }
-
+            Log.i("AZTEC-JSON", response);
             JSONObject json = new JSONObject(response);
-            JSONObject error = new JSONObject(json.getString("error"));
             if (json.getBoolean("success")) {
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setMessage("Code submitted!")
-                        .setCancelable(false)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                //do things
-                            }
-                        });
-                AlertDialog alert = builder.create();
-                alert.show();
+                successDialogRunnable sdr = new successDialogRunnable();
+                runOnUiThread(sdr);
             } else {
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setMessage(error.getString("message"))
-                        .setCancelable(false)
-                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int id) {
-                                //do things
-                            }
-                        });
-                AlertDialog alert = builder.create();
-                alert.show();
+                JSONObject error = new JSONObject(json.getString("error"));
+                errorDialogRunnable edr = new errorDialogRunnable();
+                edr.setError(error);
+                runOnUiThread(edr);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -172,18 +158,60 @@ public class MainActivity extends AppCompatActivity {
         return result.toString();
     }
 
-    private void noNetworkDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("No Network Connection!")
-                .setCancelable(false)
-                .setPositiveButton("Close App", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        MainActivity.this.finish();
-                        System.exit(0);
-                    }
-                });
-        AlertDialog alert = builder.create();
-        alert.show();
+    public class successDialogRunnable implements Runnable {
+        public void run() {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setMessage("Code submitted!")
+                    .setCancelable(false)
+                    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            //do things
+                        }
+                    });
+            AlertDialog alert = builder.create();
+            alert.show();
+        }
+    }
+
+    public class errorDialogRunnable implements Runnable {
+        private JSONObject error;
+
+        public void setError(JSONObject error) {
+            this.error = error;
+        }
+
+        public void run() {
+            try {
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setMessage(error.getString("message"))
+                        .setCancelable(false)
+                        .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                //do nothing
+                            }
+                        });
+                AlertDialog alert = builder.create();
+                alert.show();
+            } catch (JSONException ex) {
+                //
+            }
+        }
+    }
+
+    private class noNetworkDialogRunnable implements Runnable {
+        public void run() {
+            AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+            builder.setMessage("No Network Connection!")
+                    .setCancelable(false)
+                    .setPositiveButton("Close App", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int id) {
+                            MainActivity.this.finish();
+                            System.exit(0);
+                        }
+                    });
+            AlertDialog alert = builder.create();
+            alert.show();
+        }
     }
     private class postDataTask extends AsyncTask<IntentResult, Void, Void> {
         private Activity activity;
@@ -211,7 +239,8 @@ public class MainActivity extends AppCompatActivity {
                                 hm.put("data", output);
                                 performPostCall("https://api1.nl/aztec/code/store.json", hm);
                             } else {
-                                noNetworkDialog();
+                                noNetworkDialogRunnable nndr = new noNetworkDialogRunnable();
+                                runOnUiThread(nndr);
                             }
                         }
                     } else {
