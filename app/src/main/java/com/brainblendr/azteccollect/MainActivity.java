@@ -17,12 +17,29 @@ import android.widget.Toast;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
+import org.apache.http.HttpException;
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends AppCompatActivity {
     public static final int REQUEST_CODE = 0x0000c0de;
@@ -60,75 +77,75 @@ public class MainActivity extends AppCompatActivity {
         pdt.execute(result);
     }
 
-    private void postData(String data) {
-        ConnectivityManager connMgr = (ConnectivityManager)
-                getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected()) {
-            String result = executePost("https://www.api1.nl/aztec/code/store.json", "data=" + data);
-            if (result != null) {
-                Toast.makeText(this, result, Toast.LENGTH_LONG).show();
-            } else {
-                Toast.makeText(this, "An Error Occured, Try Again Later.", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(this, "No Network, Exiting...", Toast.LENGTH_LONG).show();
-            MainActivity.this.finish();
-            System.exit(0);
-        }
+    public String performPostCall(String requestURL,
+                                  HashMap<String, String> postDataParams) {
 
-    }
-
-    public static String executePost(String targetURL, String urlParameters) {
         URL url;
-        HttpURLConnection connection = null;
+        String response = "";
         try {
-            //Create connection
-            url = new URL(targetURL);
-            connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type",
-                    "application/x-www-form-urlencoded");
+            url = new URL(requestURL);
 
-            connection.setRequestProperty("Content-Length", "" +
-                    Integer.toString(urlParameters.getBytes().length));
-            connection.setRequestProperty("Content-Language", "en-US");
+            HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+            conn.setReadTimeout(15000);
+            conn.setConnectTimeout(15000);
+            conn.setRequestMethod("POST");
+            conn.setChunkedStreamingMode(0);
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
 
-            connection.setUseCaches(false);
-            connection.setDoInput(true);
-            connection.setDoOutput(true);
 
-            //Send request
-            DataOutputStream wr = new DataOutputStream(
-                    connection.getOutputStream());
-            wr.writeBytes(urlParameters);
-            wr.flush();
-            wr.close();
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostDataString(postDataParams));
 
-            //Get Response
-            InputStream is = connection.getInputStream();
-            BufferedReader rd = new BufferedReader(new InputStreamReader(is));
-            String line;
-            StringBuffer response = new StringBuffer();
-            while ((line = rd.readLine()) != null) {
-                response.append(line);
-                response.append('\r');
+            writer.flush();
+            writer.close();
+            os.close();
+            int responseCode = conn.getResponseCode();
+            if (responseCode == HttpsURLConnection.HTTP_INTERNAL_ERROR) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                while ((line = br.readLine()) != null) {
+                    response += line;
+                }
+            } else if (responseCode == HttpsURLConnection.HTTP_BAD_METHOD) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getErrorStream()));
+                while ((line = br.readLine()) != null) {
+                    response += line;
+                }
+            } else if (responseCode == HttpsURLConnection.HTTP_OK) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line = br.readLine()) != null) {
+                    response += line;
+                }
             }
-            rd.close();
-            return response.toString();
-
         } catch (Exception e) {
-
             e.printStackTrace();
-            return null;
-
-        } finally {
-
-            if (connection != null) {
-                connection.disconnect();
-            }
         }
+
+        return response;
     }
+
+    private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (first)
+                first = false;
+            else
+                result.append("&");
+
+            result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+        }
+
+        return result.toString();
+    }
+
 
     private class postDataTask extends AsyncTask<IntentResult, Void, Void> {
         private Activity activity;
@@ -146,13 +163,36 @@ public class MainActivity extends AppCompatActivity {
                     if (fName.equals("AZTEC")) {
                         if (result[0].getRawBytes() != null) {
                             output = bytesToHex(result[0].getRawBytes());
-                            postData(output);
+                            ConnectivityManager connMgr = (ConnectivityManager)
+                                    getSystemService(Context.CONNECTIVITY_SERVICE);
+                            NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+                            if (networkInfo != null && networkInfo.isConnected()) {
+                                HashMap<String, String> hm = new HashMap<String, String>();
+                                hm.put("data", output);
+                                String result_s = performPostCall("https://api1.nl/aztec/code/store.json", hm);
+                                if (result_s != null) {
+                                    JSONObject json = new JSONObject(result_s);
+                                    JSONObject error = new JSONObject(json.getString("error"));
+                                    if (json.getBoolean("success")) {
+                                        Log.i("AZTEC-RESP", "Success");
+                                    } else {
+                                        Log.e("AZTEC-RESP", error.getString("message"));
+                                    }
+                                } else {
+                                    Log.e("AZTEC-RESP", "Error!");
+                                }
+                            } else {
+                                // No Network
+                                //Toast.makeText(this.activity, "No Network, Exiting...", Toast.LENGTH_LONG).show();
+                                MainActivity.this.finish();
+                                System.exit(0);
+                            }
                         }
                     } else {
-                        Toast.makeText(this.activity, fName + " is not the right type", Toast.LENGTH_SHORT).show();
+                        //Toast.makeText(this.activity, fName + " is not the right type", Toast.LENGTH_SHORT).show();
                     }
                 } catch (Exception exc) {
-                    Log.e("AZTEC-COLLECT", exc.getMessage());
+                    Log.e("AZTEC-PDT", exc.getMessage());
                 }
             } else {
                 // Continue as normal
@@ -160,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
             return null;
         }
     }
+
     private class startScannerTask extends AsyncTask<Void, Void, Void> {
         private Activity activity;
         private ProgressDialog pd;
@@ -183,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
             intentScan.setAction("com.google.zxing.client.android.SCAN");
             intentScan.putExtra("SCAN_FORMATS", "AZTEC");
             intentScan.putExtra("PROMPT_MESSAGE", "Scan KeyCard");
-            intentScan.putExtra("RESULT_DISPLAY_DURATION_MS", 0);
+            intentScan.putExtra("RESULT_DISPLAY_DURATION_MS", Long.valueOf(0));
             intentScan.putExtra("SCAN_ORIENTATION", ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             this.activity.startActivityForResult(intentScan, REQUEST_CODE);
             return null;
