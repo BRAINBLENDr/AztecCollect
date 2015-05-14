@@ -1,7 +1,11 @@
 package com.brainblendr.azteccollect;
 
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -26,12 +30,11 @@ public class MainActivity extends AppCompatActivity {
 
     public void scanBarcode(View view)
     {
-        IntentIntegrator ig = new IntentIntegrator(this);
-        ig.setPrompt("Scan KeyCard");
-        ig.setResultDisplayDuration(0);
-        ig.setDesiredBarcodeFormats(Collections.singleton("AZTEC"));
-        ig.setOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-        ig.initiateScan();
+        ProgressDialog pd = new ProgressDialog(this);
+        pd.setMessage("Loading Scanner...");
+        pd.show();
+        startScannerTask sct = new startScannerTask(this, pd);
+        sct.execute();
     }
 
     final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
@@ -47,17 +50,14 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        // TODO: add getRawBytes() functionality (https://github.com/zxing/zxing/blob/master/core/src/main/java/com/google/zxing/aztec/decoder/Decoder.java#L79 needs to be fixed)
         IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
         if(result != null) {
             try {
                 String fName = result.getFormatName();
-                String output;
+                String output = "";
                 if (fName.equals("AZTEC")) {
                     if (result.getRawBytes() != null) {
                         output = bytesToHex(result.getRawBytes());
-                    } else {
-                        output = result.getContents();
                     }
                     Toast.makeText(this, output, Toast.LENGTH_SHORT).show();
                 } else {
@@ -69,6 +69,35 @@ public class MainActivity extends AppCompatActivity {
             }
         } else {
             // Continue as normal
+        }
+    }
+
+    private class startScannerTask extends AsyncTask<Void, Void, Void> {
+        private Activity activity;
+        private ProgressDialog pd;
+
+        public startScannerTask(Activity activity, ProgressDialog pd) {
+            this.activity = activity;
+            this.pd = pd;
+        }
+
+        @Override
+        protected void onPostExecute(Void v) {
+            if (this.pd.isShowing()) {
+                this.pd.dismiss();
+            }
+            super.onPostExecute(v);
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            IntentIntegrator ig = new IntentIntegrator(this.activity);
+            ig.setPrompt("Scan KeyCard");
+            ig.setResultDisplayDuration(0);
+            ig.setDesiredBarcodeFormats(Collections.singleton("AZTEC"));
+            ig.setOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            ig.initiateScan();
+            return null;
         }
     }
 }

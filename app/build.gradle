@@ -35,9 +35,4 @@ dependencies {
 
     // Supports Android 4.0.3 and later (API level 15)
     compile 'com.journeyapps:zxing-android-embedded:2.3.0@aar'
-
-    // Convenience library to launch the scanning Activities.
-    // It automatically picks the best scanning library from the above two, depending on the
-    // Android version and what is available.
-    compile 'com.journeyapps:zxing-android-integration:2.3.0@aar'
 }
